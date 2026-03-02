@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Album Rating Widget</title>
+
+<!--
+  =============================================
+  SUBSTACK EMBEDDING GUIDE
+  =============================================
+  
+  OPTION A — Substack Code Block (limited):
+    1. In your Substack editor, click "+" to add a block
+    2. Choose "Code block" 
+    3. Paste this entire file
+    4. Note: Substack may strip some features (animations, hover effects)
+  
+  OPTION B — External Host + Embed (recommended):
+    1. Save this file as "album-review.html"
+    2. Upload to GitHub Pages, Netlify, or Vercel (all free)
+    3. In Substack, use an embed block with the hosted URL
+    4. Full interactivity preserved
+  
+  HOW TO EDIT:
+    - Scroll down to the <script> tag
+    - Find the "ALBUM DATA" section (clearly marked)
+    - Change the album info and track list
+    - Everything else updates automatically
+    - DO NOT edit anything below the "ENGINE" line
+  
+  =============================================
+-->
+
+<!-- Google Fonts — these two fonts power the whole widget -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+  /* 
+    TIER COLORS — Change these if your rating system 
+    uses different colors. These cascade everywhere.
+  */
+  :root {
+    --tier-s: #FF69B4;
+    --tier-a: #5AC8FA;
+    --tier-b: #34C759;
+    --tier-c: #FF9500;
+
+    --bg: #0a0a0a;
+    --text: #f0ece4;
+    --text-muted: #8a8580;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    overflow-x: hidden;
+    /* Prevent any horizontal scroll in Substack iframe */
+    max-width: 100vw;
+  }
+
+  /* ---- Header ---- */
+  .album-header {
+    text-align: center;
+    margin-bottom: 36px;
+    animation: fadeInDown 0.8s ease-out;
+  }
+  .album-rank {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 14px;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+  .album-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(36px, 6vw, 64px);
+    letter-spacing: 2px;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .album-artist {
+    font-size: 13px;
+    color: var(--text-muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  /* ---- Vinyl ---- */
+  .vinyl-container {
+    position: relative;
+    width: min(520px, 90vw);
+    height: min(520px, 90vw);
+    animation: spinIn 1.2s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .vinyl-svg {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 20px 60px rgba(0,0,0,0.6));
+  }
+  .groove-ring {
+    fill: none;
+    stroke: #222;
+    stroke-width: 0.5;
+    opacity: 0.4;
+  }
+  .track-arc {
+    cursor: pointer;
+    transition: opacity 0.3s, filter 0.3s;
+    filter: saturate(0.85);
+  }
+  .track-arc:hover {
+    opacity: 1 !important;
+    filter: saturate(1.2) brightness(1.15);
+  }
+  .center-label {
+    font-family: 'Bebas Neue', sans-serif;
+    fill: var(--text);
+    text-anchor: middle;
+    dominant-baseline: central;
+    font-size: 11px;
+    letter-spacing: 3px;
+    pointer-events: none;
+  }
+
+  /* ---- Tooltip ---- */
+  .tooltip {
+    position: fixed;
+    background: #1c1c1e;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 12px 16px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 100;
+    max-width: 260px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+  .tooltip.visible { opacity: 1; }
+  .tooltip-track {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  .tooltip-tier {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  /* ---- Legend ---- */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    justify-content: center;
+    margin-top: 32px;
+    animation: fadeInUp 0.8s ease-out 0.4s both;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  /* ---- Track List ---- */
+  .track-list {
+    margin-top: 28px;
+    width: min(520px, 90vw);
+    animation: fadeInUp 0.8s ease-out 0.6s both;
+  }
+  .track-row {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    border-bottom: 1px solid #1a1a1a;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+    border-radius: 4px;
+  }
+  .track-row:hover { background: rgba(255,255,255,0.03); }
+  .track-row.highlighted { background: rgba(255,255,255,0.05); }
+  .track-num {
+    width: 28px;
+    color: var(--text-muted);
+    font-size: 11px;
+  }
+  .track-name { flex: 1; }
+  .track-tier-badge {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 14px;
+    letter-spacing: 2px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.05);
+  }
+
+  /* ---- Animations ---- */
+  @keyframes spinIn {
+    from { transform: rotate(-180deg) scale(0.6); opacity: 0; }
+    to   { transform: rotate(0deg) scale(1); opacity: 1; }
+  }
+  @keyframes fadeInDown {
+    from { transform: translateY(-20px); opacity: 0; }
+    to   { transform: translateY(0); opacity: 1; }
+  }
+  @keyframes fadeInUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to   { transform: translateY(0); opacity: 1; }
+  }
+  @keyframes drawRing {
+    to { stroke-dashoffset: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- These elements get filled by the script below -->
+<div class="album-header">
+  <div class="album-rank" id="albumRank"></div>
+  <div class="album-title" id="albumTitle"></div>
+  <div class="album-artist" id="albumArtist"></div>
+</div>
+
+<div class="vinyl-container">
+  <svg class="vinyl-svg" viewBox="0 0 500 500" id="vinylSvg"></svg>
+</div>
+
+<div class="legend" id="legend"></div>
+<div class="track-list" id="trackList"></div>
+
+<div class="tooltip" id="tooltip">
+  <div class="tooltip-track" id="tooltipTrack"></div>
+  <div class="tooltip-tier" id="tooltipTier"></div>
+</div>
+
+<script>
+// ==========================================================
+//
+//   🎵  ALBUM DATA — THIS IS THE ONLY PART YOU EDIT  🎵
+//
+//   For each new album review, change the values below.
+//   The widget rebuilds itself automatically.
+//
+//   TIER OPTIONS:  S | A | B | C
+//
+// ==========================================================
+
+const ALBUM = {
+  rank: 42,                          // Position on the RS Top 100 list
+  title: "Rumours",                  // Album name
+  artist: "Fleetwood Mac",          // Artist name
+  year: 1977,                        // Release year
+
+  tracks: [
+    // { name: "Song Title",  tier: "S" },
+    //
+    // Just copy a line, change the name and tier letter.
+    // Add or remove lines — the vinyl resizes automatically.
+    //
+    // S = Masterpiece | A = Great | B = Good | C = Not For Me
+
+    { name: "Second Hand News",       tier: "B" },
+    { name: "Dreams",                 tier: "S" },
+    { name: "Never Going Back Again", tier: "A" },
+    { name: "Don't Stop",             tier: "B" },
+    { name: "Go Your Own Way",        tier: "S" },
+    { name: "Songbird",               tier: "A" },
+    { name: "The Chain",              tier: "S" },
+    { name: "You Make Loving Fun",    tier: "A" },
+    { name: "I Don't Want to Know",   tier: "C" },
+    { name: "Oh Daddy",              tier: "C" },
+    { name: "Gold Dust Woman",        tier: "A" },
+  ]
+};
+
+// ==========================================================
+//   🛑  ENGINE BELOW — You don't need to touch this.
+//       It reads ALBUM above and builds the whole widget.
+// ==========================================================
+
+// Tier color map — matches the CSS variables
+const TIER_COLORS = {
+  S: '#FF69B4', A: '#5AC8FA', B: '#34C759', C: '#FF9500'
+};
+const TIER_LABELS = {
+  S: 'Masterpiece', A: 'Great', B: 'Good', C: 'Not For Me'
+};
+const TIER_ORDER = ['S','A','B','C'];
+
+// ---- Populate header from ALBUM data ----
+document.getElementById('albumRank').textContent =
+  `#${ALBUM.rank} on Rolling Stone's Top 100`;
+document.getElementById('albumTitle').textContent = ALBUM.title;
+document.getElementById('albumArtist').textContent =
+  `${ALBUM.artist} · ${ALBUM.year}`;
+
+// ---- Build vinyl SVG ----
+const svg = document.getElementById('vinylSvg');
+const cx = 250, cy = 250;
+const innerR = 60, outerR = 240;
+const trackCount = ALBUM.tracks.length;
+const bandWidth = (outerR - innerR) / trackCount;
+
+// Namespace helper for creating SVG elements
+function svgEl(tag, attrs) {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  return el;
+}
+
+// Record background
+svg.appendChild(svgEl('circle', {
+  cx, cy, r: outerR + 4, fill: '#111'
+}));
+
+// Groove texture (decorative rings)
+for (let r = innerR + 2; r < outerR; r += 3) {
+  const ring = svgEl('circle', { cx, cy, r });
+  ring.classList.add('groove-ring');
+  svg.appendChild(ring);
+}
+
+// Track rings — one colored ring per song
+const ringElements = [];
+
+ALBUM.tracks.forEach((track, i) => {
+  const rInner = innerR + i * bandWidth + 1;
+  const rOuter = innerR + (i + 1) * bandWidth - 1;
+  const midR = (rInner + rOuter) / 2;
+  const circumference = 2 * Math.PI * midR;
+
+  const ring = svgEl('circle', {
+    cx, cy,
+    r: midR,
+    fill: 'none',
+    stroke: TIER_COLORS[track.tier],
+    'stroke-width': bandWidth - 2,
+    opacity: '0.7',
+  });
+  ring.classList.add('track-arc');
+  ring.dataset.index = i;
+
+  // Draw-in animation
+  ring.style.strokeDasharray = circumference;
+  ring.style.strokeDashoffset = circumference;
+  ring.style.animation = `drawRing 1s ease-out ${0.1 * i}s forwards`;
+
+  svg.appendChild(ring);
+  ringElements.push(ring);
+});
+
+// Center label
+svg.appendChild(svgEl('circle', { cx, cy, r: innerR, fill: '#0a0a0a' }));
+svg.appendChild(svgEl('circle', { cx, cy, r: 8, fill: '#333' }));
+
+const label = svgEl('text', { x: cx, y: cy - 6 });
+label.classList.add('center-label');
+label.textContent = `${trackCount} TRACKS`;
+svg.appendChild(label);
+
+// ---- Tooltip ----
+const tooltip = document.getElementById('tooltip');
+const tooltipTrack = document.getElementById('tooltipTrack');
+const tooltipTier = document.getElementById('tooltipTier');
+
+function showTooltip(index, e) {
+  const track = ALBUM.tracks[index];
+  tooltipTrack.textContent = `${index + 1}. ${track.name}`;
+  tooltipTier.textContent = `${track.tier}-Tier · ${TIER_LABELS[track.tier]}`;
+  tooltipTier.style.color = TIER_COLORS[track.tier];
+  tooltip.classList.add('visible');
+  tooltip.style.left = e.clientX + 16 + 'px';
+  tooltip.style.top = e.clientY - 10 + 'px';
+}
+function hideTooltip() {
+  tooltip.classList.remove('visible');
+}
+
+// ---- Highlight sync (shared between rings and list) ----
+function highlightTrack(index) {
+  ringElements.forEach((ring, j) => {
+    ring.setAttribute('opacity', j === index ? '1' : '0.25');
+    ring.style.filter = j === index
+      ? 'saturate(1.2) brightness(1.15)'
+      : 'saturate(0.85)';
+  });
+  document.querySelectorAll('.track-row').forEach((row, j) => {
+    row.classList.toggle('highlighted', j === index);
+  });
+}
+function clearHighlight() {
+  ringElements.forEach(ring => {
+    ring.setAttribute('opacity', '0.7');
+    ring.style.filter = 'saturate(0.85)';
+  });
+  document.querySelectorAll('.track-row').forEach(row => {
+    row.classList.remove('highlighted');
+  });
+}
+
+// Wire up ring hover events
+ringElements.forEach((ring, i) => {
+  ring.addEventListener('mouseenter', (e) => {
+    highlightTrack(i);
+    showTooltip(i, e);
+  });
+  ring.addEventListener('mousemove', (e) => {
+    tooltip.style.left = e.clientX + 16 + 'px';
+    tooltip.style.top = e.clientY - 10 + 'px';
+  });
+  ring.addEventListener('mouseleave', () => {
+    clearHighlight();
+    hideTooltip();
+  });
+});
+
+// ---- Legend ----
+const legendEl = document.getElementById('legend');
+const usedTiers = [...new Set(ALBUM.tracks.map(t => t.tier))]
+  .sort((a, b) => TIER_ORDER.indexOf(a) - TIER_ORDER.indexOf(b));
+
+usedTiers.forEach(tier => {
+  const item = document.createElement('div');
+  item.className = 'legend-item';
+  item.innerHTML = `
+    <span class="legend-dot" style="background:${TIER_COLORS[tier]}"></span>
+    ${tier} · ${TIER_LABELS[tier]}
+  `;
+  legendEl.appendChild(item);
+});
+
+// ---- Track List ----
+const trackListEl = document.getElementById('trackList');
+
+ALBUM.tracks.forEach((track, i) => {
+  const row = document.createElement('div');
+  row.className = 'track-row';
+  row.innerHTML = `
+    <span class="track-num">${String(i + 1).padStart(2, '0')}</span>
+    <span class="track-name">${track.name}</span>
+    <span class="track-tier-badge" style="color:${TIER_COLORS[track.tier]}">${track.tier}</span>
+  `;
+  // Hover sync: highlight the matching vinyl ring
+  row.addEventListener('mouseenter', () => highlightTrack(i));
+  row.addEventListener('mouseleave', clearHighlight);
+  trackListEl.appendChild(row);
+});
+</script>
+</body>
+</html>
