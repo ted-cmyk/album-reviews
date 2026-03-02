@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Album Rating Widget</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --tier-s: #FF69B4;
+    --tier-a: #5AC8FA;
+    --tier-b: #34C759;
+    --tier-c: #FF9500;
+    --bg: #0a0a0a;
+    --text: #f0ece4;
+    --text-muted: #8a8580;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 40px 20px; overflow-x: hidden; max-width: 100vw;
+  }
+  .album-header { text-align: center; margin-bottom: 36px; animation: fadeInDown 0.8s ease-out; }
+  .album-rank { font-family: 'Bebas Neue', sans-serif; font-size: 14px; letter-spacing: 6px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+  .album-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(36px, 6vw, 64px); letter-spacing: 2px; line-height: 1; margin-bottom: 6px; }
+  .album-artist { font-size: 13px; color: var(--text-muted); letter-spacing: 2px; text-transform: uppercase; }
+  .vinyl-container { position: relative; width: min(520px, 90vw); height: min(520px, 90vw); animation: spinIn 1.2s cubic-bezier(0.23, 1, 0.32, 1); }
+  .vinyl-svg { width: 100%; height: 100%; filter: drop-shadow(0 20px 60px rgba(0,0,0,0.6)); }
+  .groove-ring { fill: none; stroke: #222; stroke-width: 0.5; opacity: 0.4; }
+  .track-arc { cursor: pointer; transition: opacity 0.3s, filter 0.3s; filter: saturate(0.85); }
+  .track-arc:hover { opacity: 1 !important; filter: saturate(1.2) brightness(1.15); }
+  .center-label { font-family: 'Bebas Neue', sans-serif; fill: var(--text); text-anchor: middle; dominant-baseline: central; font-size: 11px; letter-spacing: 3px; pointer-events: none; }
+  .tooltip { position: fixed; background: #1c1c1e; border: 1px solid #333; border-radius: 8px; padding: 12px 16px; pointer-events: none; opacity: 0; transition: opacity 0.2s; z-index: 100; max-width: 260px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+  .tooltip.visible { opacity: 1; }
+  .tooltip-track { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 1px; margin-bottom: 4px; }
+  .tooltip-tier { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; }
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; margin-top: 32px; animation: fadeInUp 0.8s ease-out 0.4s both; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .track-list { margin-top: 28px; width: min(520px, 90vw); animation: fadeInUp 0.8s ease-out 0.6s both; }
+  .track-row { display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #1a1a1a; font-size: 12px; cursor: pointer; transition: background 0.2s; border-radius: 4px; }
+  .track-row:hover { background: rgba(255,255,255,0.03); }
+  .track-row.highlighted { background: rgba(255,255,255,0.05); }
+  .track-num { width: 28px; color: var(--text-muted); font-size: 11px; }
+  .track-name { flex: 1; }
+  .track-tier-badge { font-family: 'Bebas Neue', sans-serif; font-size: 14px; letter-spacing: 2px; padding: 2px 8px; border-radius: 4px; background: rgba(255,255,255,0.05); }
+  @keyframes spinIn { from { transform: rotate(-180deg) scale(0.6); opacity: 0; } to { transform: rotate(0deg) scale(1); opacity: 1; } }
+  @keyframes fadeInDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  @keyframes fadeInUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  @keyframes drawRing { to { stroke-dashoffset: 0; } }
+</style>
+</head>
+<body>
+<div class="album-header">
+  <div class="album-rank" id="albumRank"></div>
+  <div class="album-title" id="albumTitle"></div>
+  <div class="album-artist" id="albumArtist"></div>
+</div>
+<div class="vinyl-container">
+  <svg class="vinyl-svg" viewBox="0 0 500 500" id="vinylSvg"></svg>
+</div>
+<div class="legend" id="legend"></div>
+<div class="track-list" id="trackList"></div>
+<div class="tooltip" id="tooltip">
+  <div class="tooltip-track" id="tooltipTrack"></div>
+  <div class="tooltip-tier" id="tooltipTier"></div>
+</div>
+<script>
+// ==========================================================
+//
+//   🎵  FILL IN YOUR ALBUM INFO BELOW  🎵
+//
+//   S = Masterpiece | A = Great | B = Good | C = Not For Me
+//
+// ==========================================================
+
+const ALBUM = {
+  rank: 0,                           // ← Album's position on the RS Top 100
+  title: "Album Name",               // ← Album title
+  artist: "Artist Name",             // ← Artist
+  year: 2000,                        // ← Release year
+
+  tracks: [
+    { name: "Track 1 Name",  tier: "S" },
+    { name: "Track 2 Name",  tier: "A" },
+    { name: "Track 3 Name",  tier: "B" },
+    { name: "Track 4 Name",  tier: "C" },
+    // Copy a line above and paste it here for more tracks.
+    // Delete any lines you don't need.
+  ]
+};
+
+// ==========================================================
+//   🛑  DON'T EDIT BELOW THIS LINE
+// ==========================================================
+const TIER_COLORS={S:'#FF69B4',A:'#5AC8FA',B:'#34C759',C:'#FF9500'};
+const TIER_LABELS={S:'Masterpiece',A:'Great',B:'Good',C:'Not For Me'};
+const TIER_ORDER=['S','A','B','C'];
+document.getElementById('albumRank').textContent=`#${ALBUM.rank} on Rolling Stone's Top 100`;
+document.getElementById('albumTitle').textContent=ALBUM.title;
+document.getElementById('albumArtist').textContent=`${ALBUM.artist} · ${ALBUM.year}`;
+const svg=document.getElementById('vinylSvg');const cx=250,cy=250,innerR=60,outerR=240;
+const trackCount=ALBUM.tracks.length,bandWidth=(outerR-innerR)/trackCount;
+function svgEl(t,a){const e=document.createElementNS('http://www.w3.org/2000/svg',t);for(const[k,v]of Object.entries(a))e.setAttribute(k,v);return e;}
+svg.appendChild(svgEl('circle',{cx,cy,r:outerR+4,fill:'#111'}));
+for(let r=innerR+2;r<outerR;r+=3){const ring=svgEl('circle',{cx,cy,r});ring.classList.add('groove-ring');svg.appendChild(ring);}
+const ringElements=[];
+ALBUM.tracks.forEach((track,i)=>{const rI=innerR+i*bandWidth+1,rO=innerR+(i+1)*bandWidth-1,midR=(rI+rO)/2,circ=2*Math.PI*midR;const ring=svgEl('circle',{cx,cy,r:midR,fill:'none',stroke:TIER_COLORS[track.tier],'stroke-width':bandWidth-2,opacity:'0.7'});ring.classList.add('track-arc');ring.dataset.index=i;ring.style.strokeDasharray=circ;ring.style.strokeDashoffset=circ;ring.style.animation=`drawRing 1s ease-out ${0.1*i}s forwards`;svg.appendChild(ring);ringElements.push(ring);});
+svg.appendChild(svgEl('circle',{cx,cy,r:innerR,fill:'#0a0a0a'}));svg.appendChild(svgEl('circle',{cx,cy,r:8,fill:'#333'}));
+const label=svgEl('text',{x:cx,y:cy-6});label.classList.add('center-label');label.textContent=`${trackCount} TRACKS`;svg.appendChild(label);
+const tooltip=document.getElementById('tooltip'),tooltipTrack=document.getElementById('tooltipTrack'),tooltipTier=document.getElementById('tooltipTier');
+function showTooltip(idx,e){const t=ALBUM.tracks[idx];tooltipTrack.textContent=`${idx+1}. ${t.name}`;tooltipTier.textContent=`${t.tier}-Tier · ${TIER_LABELS[t.tier]}`;tooltipTier.style.color=TIER_COLORS[t.tier];tooltip.classList.add('visible');tooltip.style.left=e.clientX+16+'px';tooltip.style.top=e.clientY-10+'px';}
+function hideTooltip(){tooltip.classList.remove('visible');}
+function highlightTrack(idx){ringElements.forEach((r,j)=>{r.setAttribute('opacity',j===idx?'1':'0.25');r.style.filter=j===idx?'saturate(1.2) brightness(1.15)':'saturate(0.85)';});document.querySelectorAll('.track-row').forEach((r,j)=>{r.classList.toggle('highlighted',j===idx);});}
+function clearHighlight(){ringElements.forEach(r=>{r.setAttribute('opacity','0.7');r.style.filter='saturate(0.85)';});document.querySelectorAll('.track-row').forEach(r=>{r.classList.remove('highlighted');});}
+ringElements.forEach((ring,i)=>{ring.addEventListener('mouseenter',(e)=>{highlightTrack(i);showTooltip(i,e);});ring.addEventListener('mousemove',(e)=>{tooltip.style.left=e.clientX+16+'px';tooltip.style.top=e.clientY-10+'px';});ring.addEventListener('mouseleave',()=>{clearHighlight();hideTooltip();});});
+const legendEl=document.getElementById('legend');[...new Set(ALBUM.tracks.map(t=>t.tier))].sort((a,b)=>TIER_ORDER.indexOf(a)-TIER_ORDER.indexOf(b)).forEach(tier=>{const item=document.createElement('div');item.className='legend-item';item.innerHTML=`<span class="legend-dot" style="background:${TIER_COLORS[tier]}"></span>${tier} · ${TIER_LABELS[tier]}`;legendEl.appendChild(item);});
+const trackListEl=document.getElementById('trackList');ALBUM.tracks.forEach((track,i)=>{const row=document.createElement('div');row.className='track-row';row.innerHTML=`<span class="track-num">${String(i+1).padStart(2,'0')}</span><span class="track-name">${track.name}</span><span class="track-tier-badge" style="color:${TIER_COLORS[track.tier]}">${track.tier}</span>`;row.addEventListener('mouseenter',()=>highlightTrack(i));row.addEventListener('mouseleave',clearHighlight);trackListEl.appendChild(row);});
+</script>
+</body>
+</html>
