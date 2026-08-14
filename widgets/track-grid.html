@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Track Grid — Rumours, Fleetwood Mac</title>
+<meta name="description" content="Every track on the album as one colour-coded grid — the shape of a record at a glance.">
+
+<!-- Open Graph / social share. The image is a real 1200x630 PNG committed
+     to og/ — regenerate it with tools/render-og.mjs after editing this file.
+     These URLs must be absolute; change the domain if you deploy elsewhere. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Album Review Widgets">
+<meta property="og:title" content="Track Grid — Rumours">
+<meta property="og:description" content="Every track on the album as one colour-coded grid — the shape of a record at a glance.">
+<meta property="og:url" content="https://album-reviews.vercel.app/widgets/track-grid.html">
+<meta property="og:image" content="https://album-reviews.vercel.app/og/track-grid.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Track grid infographic for Rumours by Fleetwood Mac.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Track Grid — Rumours">
+<meta name="twitter:description" content="Every track on the album as one colour-coded grid — the shape of a record at a glance.">
+<meta name="twitter:image" content="https://album-reviews.vercel.app/og/track-grid.png">
+
+<!-- Fonts are bundled in widgets/shared/fonts/ and declared in the stylesheet
+     below, so there's no call out to Google Fonts. -->
+<link rel="stylesheet" href="shared/widget-core.css">
+<style>
+  /* Widget-specific: the tap-to-read caption under the grid. */
+  .caption {
+    margin-top: 16px;
+    min-height: 40px;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text-muted);
+  }
+  .caption strong { display: block; color: var(--text); font-size: 15px; margin-bottom: 2px; }
+  .cell { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="og-copy">
+    <div class="tool-tag" data-tool-tag></div>
+    <div class="album-rank" data-album-rank></div>
+    <h1 class="album-title" data-album-title></h1>
+    <div class="album-artist" data-album-artist></div>
+  </div>
+
+  <div class="figure"><svg id="figure" role="img" aria-label="Track grid by tier"></svg></div>
+
+  <div class="legend" data-legend></div>
+
+  <div class="og-hide">
+    <p class="caption" data-caption>Tap any square to see the track.</p>
+    <div class="exports">
+      <button class="export-btn" data-export-svg type="button">Download SVG</button>
+      <button class="export-btn" data-export-png type="button">Download PNG</button>
+    </div>
+    <p class="export-note">
+      Both formats travel with the fonts embedded, so they look the same on a
+      machine that's never had Bebas Neue installed. SVG stays sharp at any size
+      and can be recoloured in Figma or Illustrator; PNG is the one to drop
+      straight into a post.
+    </p>
+  </div>
+</div>
+
+<script src="shared/widget-core.js"></script>
+<script>
+// ==========================================================
+//
+//   🎵  FILL IN YOUR ALBUM INFO BELOW  🎵
+//
+//   S = Masterpiece | A = Great | B = Good | C = Not For Me
+//
+// ==========================================================
+
+const ALBUM = {
+  rank: 42,                          // ← Position on the RS Top 100
+  title: "Rumours",                  // ← Album title
+  artist: "Fleetwood Mac",           // ← Artist
+  year: 1977,                        // ← Release year
+
+  tracks: [
+    { name: "Second Hand News",       tier: "B" },
+    { name: "Dreams",                 tier: "S" },
+    { name: "Never Going Back Again", tier: "A" },
+    { name: "Don't Stop",             tier: "B" },
+    { name: "Go Your Own Way",        tier: "S" },
+    { name: "Songbird",               tier: "A" },
+    { name: "The Chain",              tier: "S" },
+    { name: "You Make Loving Fun",    tier: "A" },
+    { name: "I Don't Want to Know",   tier: "C" },
+    { name: "Oh Daddy",               tier: "C" },
+    { name: "Gold Dust Woman",        tier: "A" },
+  ]
+};
+
+// ==========================================================
+//   🛑  DON'T EDIT BELOW THIS LINE
+// ==========================================================
+(function () {
+  const W = AlbumWidget;
+  const widget = W.init(ALBUM, { toolName: 'Track Grid' });
+  const { tracks, total } = widget.data;
+
+  const WIDTH = 480;
+  const GAP = 10;
+  // Long records need narrower squares, or the grid runs off the bottom.
+  const COLS = total <= 12 ? 4 : (total <= 20 ? 5 : 6);
+  const CELL = (WIDTH - GAP * (COLS - 1)) / COLS;
+  const ROWS = Math.max(Math.ceil(total / COLS), 1);
+  const HEIGHT = ROWS * CELL + (ROWS - 1) * GAP;
+
+  const svg = document.getElementById('figure');
+  svg.setAttribute('viewBox', `0 0 ${WIDTH} ${HEIGHT}`);
+
+  const caption = document.querySelector('[data-caption]');
+  const cells = [];
+
+  tracks.forEach(function (track, index) {
+    const x = (index % COLS) * (CELL + GAP);
+    const y = Math.floor(index / COLS) * (CELL + GAP);
+    const colour = W.TIER_COLORS[track.tier];
+
+    const cell = W.el('g', { class: 'cell', role: 'listitem' });
+    cell.appendChild(W.el('title')).textContent =
+      (index + 1) + '. ' + track.name + ' — ' + track.tier + '-tier';
+
+    cell.appendChild(W.el('rect', {
+      x: x, y: y, width: CELL, height: CELL, rx: 12, fill: colour
+    }));
+
+    cell.appendChild(W.text(String(index + 1).padStart(2, '0'), {
+      x: x + CELL / 2, y: y + CELL / 2 - 5,
+      'font-family': W.FONT_DISPLAY, 'font-size': Math.round(CELL * 0.42), 'letter-spacing': 1,
+      fill: W.BG, 'text-anchor': 'middle', 'dominant-baseline': 'central'
+    }));
+
+    cell.appendChild(W.text(track.tier, {
+      x: x + CELL / 2, y: y + CELL - 18,
+      'font-family': W.FONT_MONO, 'font-size': Math.round(CELL * 0.13), 'letter-spacing': 2,
+      'font-weight': 700, fill: W.BG, opacity: 0.62,
+      'text-anchor': 'middle', 'dominant-baseline': 'central'
+    }));
+
+    svg.appendChild(cell);
+    cells.push(cell);
+  });
+
+  // Tap, not hover — this is built for a phone first.
+  function select(index) {
+    cells.forEach(function (cell, i) {
+      cell.setAttribute('opacity', i === index ? '1' : '0.3');
+    });
+
+    const track = tracks[index];
+    if (caption) {
+      caption.innerHTML = '';
+      const name = document.createElement('strong');
+      name.textContent = (index + 1) + '. ' + track.name;
+      caption.appendChild(name);
+      caption.appendChild(document.createTextNode(
+        track.tier + '-tier · ' + W.TIER_LABELS[track.tier]
+      ));
+    }
+  }
+
+  function clear() {
+    cells.forEach(function (cell) { cell.setAttribute('opacity', '1'); });
+    if (caption) caption.textContent = 'Tap any square to see the track.';
+  }
+
+  if (!widget.ogMode) {
+    let selected = -1;
+    cells.forEach(function (cell, index) {
+      cell.addEventListener('click', function () {
+        if (selected === index) { selected = -1; clear(); }
+        else { selected = index; select(index); }
+      });
+    });
+  }
+
+  widget.wireExports(svg, WIDTH, HEIGHT);
+}());
+</script>
+</body>
+</html>

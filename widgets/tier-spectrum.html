@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tier Spectrum — Rumours, Fleetwood Mac</title>
+<meta name="description" content="How an album's tracks split across S, A, B and C tiers — one bar, at a glance.">
+
+<!-- Open Graph / social share. The image is a real 1200x630 PNG committed
+     to og/ — regenerate it with tools/render-og.mjs after editing this file.
+     These URLs must be absolute; change the domain if you deploy elsewhere. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Album Review Widgets">
+<meta property="og:title" content="Tier Spectrum — Rumours">
+<meta property="og:description" content="How an album's tracks split across S, A, B and C tiers — one bar, at a glance.">
+<meta property="og:url" content="https://album-reviews.vercel.app/widgets/tier-spectrum.html">
+<meta property="og:image" content="https://album-reviews.vercel.app/og/tier-spectrum.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Tier spectrum infographic for Rumours by Fleetwood Mac.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Tier Spectrum — Rumours">
+<meta name="twitter:description" content="How an album's tracks split across S, A, B and C tiers — one bar, at a glance.">
+<meta name="twitter:image" content="https://album-reviews.vercel.app/og/tier-spectrum.png">
+
+<!-- Fonts are bundled in widgets/shared/fonts/ and declared in the stylesheet
+     below, so there's no call out to Google Fonts. -->
+<link rel="stylesheet" href="shared/widget-core.css">
+</head>
+<body>
+
+<div class="stage">
+  <div class="og-copy">
+    <div class="tool-tag" data-tool-tag></div>
+    <div class="album-rank" data-album-rank></div>
+    <h1 class="album-title" data-album-title></h1>
+    <div class="album-artist" data-album-artist></div>
+  </div>
+
+  <div class="figure"><svg id="figure" role="img" aria-label="Tier distribution"></svg></div>
+
+  <div class="legend" data-legend></div>
+
+  <div class="og-hide">
+    <div class="track-list" data-track-list></div>
+    <div class="exports">
+      <button class="export-btn" data-export-svg type="button">Download SVG</button>
+      <button class="export-btn" data-export-png type="button">Download PNG</button>
+    </div>
+    <p class="export-note">
+      Both formats travel with the fonts embedded, so they look the same on a
+      machine that's never had Bebas Neue installed. SVG stays sharp at any size
+      and can be recoloured in Figma or Illustrator; PNG is the one to drop
+      straight into a post.
+    </p>
+  </div>
+</div>
+
+<script src="shared/widget-core.js"></script>
+<script>
+// ==========================================================
+//
+//   🎵  FILL IN YOUR ALBUM INFO BELOW  🎵
+//
+//   S = Masterpiece | A = Great | B = Good | C = Not For Me
+//
+// ==========================================================
+
+const ALBUM = {
+  rank: 42,                          // ← Position on the RS Top 100
+  title: "Rumours",                  // ← Album title
+  artist: "Fleetwood Mac",           // ← Artist
+  year: 1977,                        // ← Release year
+
+  tracks: [
+    { name: "Second Hand News",       tier: "B" },
+    { name: "Dreams",                 tier: "S" },
+    { name: "Never Going Back Again", tier: "A" },
+    { name: "Don't Stop",             tier: "B" },
+    { name: "Go Your Own Way",        tier: "S" },
+    { name: "Songbird",               tier: "A" },
+    { name: "The Chain",              tier: "S" },
+    { name: "You Make Loving Fun",    tier: "A" },
+    { name: "I Don't Want to Know",   tier: "C" },
+    { name: "Oh Daddy",               tier: "C" },
+    { name: "Gold Dust Woman",        tier: "A" },
+  ]
+};
+
+// ==========================================================
+//   🛑  DON'T EDIT BELOW THIS LINE
+// ==========================================================
+(function () {
+  const W = AlbumWidget;
+  const widget = W.init(ALBUM, { toolName: 'Tier Spectrum' });
+  const { counts, total, tiersUsed, tracks } = widget.data;
+
+  const WIDTH = 480;
+  const BAR_TOP = 6;
+  const BAR_HEIGHT = 72;
+  const ROW_TOP = 126;
+  const ROW_STEP = 76;
+  const LABEL_COL = 46;
+  const HEIGHT = ROW_TOP + tiersUsed.length * ROW_STEP - 24;
+
+  const svg = document.getElementById('figure');
+  svg.setAttribute('viewBox', `0 0 ${WIDTH} ${HEIGHT}`);
+
+  // --- the stacked bar: one album, one line, proportions immediately readable
+  const clipId = 'spectrum-clip';
+  const defs = W.el('defs');
+  const clip = W.el('clipPath', { id: clipId });
+  clip.appendChild(W.el('rect', { x: 0, y: BAR_TOP, width: WIDTH, height: BAR_HEIGHT, rx: 12 }));
+  defs.appendChild(clip);
+  svg.appendChild(defs);
+
+  const bar = W.el('g', { 'clip-path': `url(#${clipId})` });
+  bar.appendChild(W.el('rect', { x: 0, y: BAR_TOP, width: WIDTH, height: BAR_HEIGHT, fill: '#1e1e1e' }));
+
+  let cursor = 0;
+  tiersUsed.forEach(function (tier) {
+    const segment = total ? (WIDTH * counts[tier]) / total : 0;
+
+    bar.appendChild(W.el('rect', {
+      x: cursor, y: BAR_TOP, width: segment, height: BAR_HEIGHT,
+      fill: W.TIER_COLORS[tier]
+    }));
+
+    // Only label a segment that's actually wide enough to hold the letter.
+    if (segment >= 34) {
+      bar.appendChild(W.text(tier, {
+        x: cursor + segment / 2, y: BAR_TOP + BAR_HEIGHT / 2 + 1,
+        'font-family': W.FONT_DISPLAY, 'font-size': 30, 'letter-spacing': 2,
+        fill: W.BG, 'text-anchor': 'middle', 'dominant-baseline': 'central'
+      }));
+    }
+
+    cursor += segment;
+  });
+  svg.appendChild(bar);
+
+  // --- one row per tier, so the exact counts are there for anyone who wants them
+  tiersUsed.forEach(function (tier, index) {
+    const top = ROW_TOP + index * ROW_STEP;
+    const share = total ? counts[tier] / total : 0;
+    const trackWidth = WIDTH - LABEL_COL;
+
+    svg.appendChild(W.text(tier, {
+      x: 0, y: top + 16,
+      'font-family': W.FONT_DISPLAY, 'font-size': 40, 'letter-spacing': 1,
+      fill: W.TIER_COLORS[tier], 'dominant-baseline': 'central'
+    }));
+
+    svg.appendChild(W.text(W.TIER_LABELS[tier].toUpperCase(), {
+      x: LABEL_COL, y: top + 6,
+      'font-family': W.FONT_MONO, 'font-size': 12, 'letter-spacing': 2,
+      fill: W.TEXT, 'dominant-baseline': 'central'
+    }));
+
+    svg.appendChild(W.text(counts[tier] + ' · ' + Math.round(share * 100) + '%', {
+      x: WIDTH, y: top + 6,
+      'font-family': W.FONT_MONO, 'font-size': 12, 'letter-spacing': 1,
+      fill: W.TEXT_MUTED, 'text-anchor': 'end', 'dominant-baseline': 'central'
+    }));
+
+    svg.appendChild(W.el('rect', {
+      x: LABEL_COL, y: top + 24, width: trackWidth, height: 14, rx: 7, fill: '#1e1e1e'
+    }));
+
+    // rx on a very short bar looks like a dot, so keep a floor on the width
+    svg.appendChild(W.el('rect', {
+      x: LABEL_COL, y: top + 24, width: Math.max(trackWidth * share, 14), height: 14, rx: 7,
+      fill: W.TIER_COLORS[tier]
+    }));
+  });
+
+  // --- track list (interactive view only)
+  const list = document.querySelector('[data-track-list]');
+  if (list) {
+    tracks.forEach(function (track, index) {
+      const row = document.createElement('div');
+      row.className = 'track-row';
+
+      const num = document.createElement('span');
+      num.className = 'track-num';
+      num.textContent = String(index + 1).padStart(2, '0');
+
+      const name = document.createElement('span');
+      name.className = 'track-name';
+      name.textContent = track.name;
+
+      const tier = document.createElement('span');
+      tier.className = 'track-tier';
+      tier.style.color = W.TIER_COLORS[track.tier];
+      tier.textContent = track.tier;
+
+      row.append(num, name, tier);
+      list.appendChild(row);
+    });
+  }
+
+  widget.wireExports(svg, WIDTH, HEIGHT);
+}());
+</script>
+</body>
+</html>

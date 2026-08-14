@@ -1,0 +1,270 @@
+/* ==========================================================
+   SHARED WIDGET STYLES
+   Used by every file in widgets/. Don't edit unless you want
+   the change to apply to all three widgets at once.
+   ========================================================== */
+
+/* Self-hosted so the OG renderer can't produce a fallback-font share card.
+   See fonts/README.md. font-display: block — for a share image we'd rather
+   wait than bake the wrong typeface into a PNG that gets cached forever. */
+@font-face {
+  font-family: 'Bebas Neue';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('fonts/bebas-neue-400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Space Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('fonts/space-mono-400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Space Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: block;
+  src: url('fonts/space-mono-700.woff2') format('woff2');
+}
+
+:root {
+  --tier-s: #FF69B4;
+  --tier-a: #5AC8FA;
+  --tier-b: #34C759;
+  --tier-c: #FF9500;
+
+  --bg: #0a0a0a;
+  --panel: #111111;
+  --line: #1e1e1e;
+  --text: #f0ece4;
+  --text-muted: #8a8580;
+
+  /* The fallbacks still matter: an exported SVG opened somewhere that can't
+     resolve the embedded @font-face should degrade to something condensed
+     rather than to Times. */
+  --display: 'Bebas Neue', 'Oswald', Impact, Haettenschweiler, sans-serif;
+  --mono: 'Space Mono', 'DejaVu Sans Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body { background: var(--bg); }
+
+body {
+  color: var(--text);
+  font-family: var(--mono);
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- Mobile-first shell ---------- */
+
+.stage {
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 28px 18px 40px;
+}
+
+.tool-tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 5px 11px;
+  display: inline-block;
+  margin-bottom: 16px;
+}
+
+.album-rank {
+  font-family: var(--display);
+  font-size: 13px;
+  letter-spacing: 5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.album-title {
+  font-family: var(--display);
+  font-size: clamp(38px, 11vw, 62px);
+  letter-spacing: 1.5px;
+  line-height: 0.95;
+  margin-bottom: 8px;
+}
+
+.album-artist {
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.figure {
+  margin: 30px 0 24px;
+}
+
+.figure svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+/* ---------- Legend ---------- */
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-top: 22px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+}
+
+/* ---------- Export controls ---------- */
+
+.exports {
+  display: flex;
+  gap: 10px;
+  margin-top: 28px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
+
+.export-btn {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  /* 44px min target — these are meant to be tapped on a phone. */
+  min-height: 46px;
+  padding: 12px 10px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.export-btn:hover,
+.export-btn:focus-visible { background: rgba(255, 255, 255, 0.05); border-color: #333; }
+.export-btn:active { background: rgba(255, 255, 255, 0.09); }
+
+.export-note {
+  margin-top: 10px;
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* ---------- Track list (shared by two of the widgets) ---------- */
+
+.track-list { margin-top: 26px; }
+
+.track-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 8px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  border-radius: 5px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s;
+}
+
+.track-row.is-active { background: rgba(255, 255, 255, 0.06); }
+
+.track-num {
+  width: 24px;
+  flex: none;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.track-name { flex: 1; min-width: 0; }
+
+.track-tier {
+  font-family: var(--display);
+  font-size: 15px;
+  letter-spacing: 2px;
+  padding: 2px 9px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  flex: none;
+}
+
+/* ==========================================================
+   OG MODE — triggered by adding ?og=1 to the URL.
+   Locks the page to a 1200x630 share-card canvas so the
+   screenshot renderer always produces the same image.
+   ========================================================== */
+
+body.og-mode {
+  width: 1200px;
+  height: 630px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+body.og-mode .og-hide { display: none !important; }
+
+body.og-mode .stage {
+  width: 1200px;
+  max-width: none;
+  height: 630px;
+  padding: 62px 70px 54px;
+  display: grid;
+  grid-template-columns: 1fr 450px;
+  grid-template-rows: 1fr auto;
+  column-gap: 48px;
+  align-items: center;
+}
+
+body.og-mode .og-copy { grid-column: 1; grid-row: 1; align-self: center; }
+body.og-mode .figure   { grid-column: 2; grid-row: 1 / span 2; margin: 0; align-self: center; }
+body.og-mode .legend   { grid-column: 1; grid-row: 2; margin: 0; align-self: end; }
+
+body.og-mode .album-title { font-size: 74px; line-height: 0.92; margin-bottom: 14px; }
+body.og-mode .album-rank  { font-size: 16px; letter-spacing: 6px; margin-bottom: 10px; }
+body.og-mode .album-artist { font-size: 15px; letter-spacing: 3px; }
+body.og-mode .tool-tag { font-size: 12px; margin-bottom: 22px; }
+body.og-mode .legend-item { font-size: 13px; }
+
+/* A wrapping flex row silently drops a tier off the bottom of the 630px
+   canvas. A fixed 2-column grid always shows all four. */
+body.og-mode .legend {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  justify-content: start;
+  gap: 12px 30px;
+}

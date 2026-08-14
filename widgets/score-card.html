@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Score Card — Rumours, Fleetwood Mac</title>
+<meta name="description" content="One number for the whole record, with the tier split that produced it.">
+
+<!-- Open Graph / social share. The image is a real 1200x630 PNG committed
+     to og/ — regenerate it with tools/render-og.mjs after editing this file.
+     These URLs must be absolute; change the domain if you deploy elsewhere. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Album Review Widgets">
+<meta property="og:title" content="Score Card — Rumours">
+<meta property="og:description" content="One number for the whole record, with the tier split that produced it.">
+<meta property="og:url" content="https://album-reviews.vercel.app/widgets/score-card.html">
+<meta property="og:image" content="https://album-reviews.vercel.app/og/score-card.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Score card infographic for Rumours by Fleetwood Mac.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Score Card — Rumours">
+<meta name="twitter:description" content="One number for the whole record, with the tier split that produced it.">
+<meta name="twitter:image" content="https://album-reviews.vercel.app/og/score-card.png">
+
+<!-- Fonts are bundled in widgets/shared/fonts/ and declared in the stylesheet
+     below, so there's no call out to Google Fonts. -->
+<link rel="stylesheet" href="shared/widget-core.css">
+<style>
+  /* Widget-specific: the "what carried the record" list. */
+  .highlights { margin-top: 26px; }
+  .highlights h2 {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+  }
+  .highlight-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--line);
+    font-size: 13px;
+  }
+  .highlight-bar { width: 3px; height: 22px; border-radius: 2px; flex: none; }
+  .highlight-name { flex: 1; min-width: 0; }
+  .highlight-tier {
+    font-family: var(--display);
+    font-size: 15px;
+    letter-spacing: 2px;
+    flex: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="og-copy">
+    <div class="tool-tag" data-tool-tag></div>
+    <div class="album-rank" data-album-rank></div>
+    <h1 class="album-title" data-album-title></h1>
+    <div class="album-artist" data-album-artist></div>
+  </div>
+
+  <div class="figure"><svg id="figure" role="img" aria-label="Album score"></svg></div>
+
+  <div class="legend" data-legend></div>
+
+  <div class="og-hide">
+    <div class="highlights">
+      <h2>What carried the record</h2>
+      <div data-highlights></div>
+    </div>
+    <div class="exports">
+      <button class="export-btn" data-export-svg type="button">Download SVG</button>
+      <button class="export-btn" data-export-png type="button">Download PNG</button>
+    </div>
+    <p class="export-note">
+      Score is the album's tier average on a 0–100 scale: an all-S record scores
+      100, an all-C record scores 25. Both downloads travel with the fonts
+      embedded — SVG stays sharp at any size, PNG drops straight into a post.
+    </p>
+  </div>
+</div>
+
+<script src="shared/widget-core.js"></script>
+<script>
+// ==========================================================
+//
+//   🎵  FILL IN YOUR ALBUM INFO BELOW  🎵
+//
+//   S = Masterpiece | A = Great | B = Good | C = Not For Me
+//
+// ==========================================================
+
+const ALBUM = {
+  rank: 42,                          // ← Position on the RS Top 100
+  title: "Rumours",                  // ← Album title
+  artist: "Fleetwood Mac",           // ← Artist
+  year: 1977,                        // ← Release year
+
+  tracks: [
+    { name: "Second Hand News",       tier: "B" },
+    { name: "Dreams",                 tier: "S" },
+    { name: "Never Going Back Again", tier: "A" },
+    { name: "Don't Stop",             tier: "B" },
+    { name: "Go Your Own Way",        tier: "S" },
+    { name: "Songbird",               tier: "A" },
+    { name: "The Chain",              tier: "S" },
+    { name: "You Make Loving Fun",    tier: "A" },
+    { name: "I Don't Want to Know",   tier: "C" },
+    { name: "Oh Daddy",               tier: "C" },
+    { name: "Gold Dust Woman",        tier: "A" },
+  ]
+};
+
+// ==========================================================
+//   🛑  DON'T EDIT BELOW THIS LINE
+// ==========================================================
+(function () {
+  const W = AlbumWidget;
+  const widget = W.init(ALBUM, { toolName: 'Score Card' });
+  const { counts, total, score, tiersUsed, tracks } = widget.data;
+
+  const WIDTH = 480;
+  const HEIGHT = 392;
+  const CX = 240;
+  const CY = 196;
+  const RADIUS = 150;
+  const STROKE = 36;
+
+  // A 270° gauge, opening at the bottom — deliberately not a full ring,
+  // so it doesn't read as another vinyl.
+  const START = 135;
+  const SWEEP = 270;
+
+  const svg = document.getElementById('figure');
+  svg.setAttribute('viewBox', `0 0 ${WIDTH} ${HEIGHT}`);
+
+  function point(degrees) {
+    const radians = (degrees * Math.PI) / 180;
+    return {
+      x: CX + RADIUS * Math.cos(radians),
+      y: CY + RADIUS * Math.sin(radians)
+    };
+  }
+
+  function arc(fromDeg, toDeg, colour) {
+    const from = point(fromDeg);
+    const to = point(toDeg);
+    const largeArc = Math.abs(toDeg - fromDeg) > 180 ? 1 : 0;
+
+    return W.el('path', {
+      d: `M ${from.x} ${from.y} A ${RADIUS} ${RADIUS} 0 ${largeArc} 1 ${to.x} ${to.y}`,
+      fill: 'none', stroke: colour, 'stroke-width': STROKE, 'stroke-linecap': 'butt'
+    });
+  }
+
+  svg.appendChild(arc(START, START + SWEEP, '#1e1e1e'));
+
+  // Segments sized by how many tracks landed in each tier.
+  let cursor = START;
+  tiersUsed.forEach(function (tier) {
+    const span = total ? (SWEEP * counts[tier]) / total : 0;
+    if (span <= 0) return;
+    // A hairline gap keeps neighbouring segments legible.
+    const gap = span > 4 ? 1.2 : 0;
+    svg.appendChild(arc(cursor, cursor + span - gap, W.TIER_COLORS[tier]));
+    cursor += span;
+  });
+
+  svg.appendChild(W.text('ALBUM SCORE', {
+    x: CX, y: CY - 74,
+    'font-family': W.FONT_MONO, 'font-size': 13, 'letter-spacing': 4, 'font-weight': 700,
+    fill: W.TEXT_MUTED, 'text-anchor': 'middle', 'dominant-baseline': 'central'
+  }));
+
+  svg.appendChild(W.text(String(score), {
+    x: CX, y: CY + 2,
+    'font-family': W.FONT_DISPLAY, 'font-size': 116, 'letter-spacing': 2,
+    fill: W.TEXT, 'text-anchor': 'middle', 'dominant-baseline': 'central'
+  }));
+
+  svg.appendChild(W.text('OUT OF 100', {
+    x: CX, y: CY + 68,
+    'font-family': W.FONT_MONO, 'font-size': 12, 'letter-spacing': 3,
+    fill: W.TEXT_MUTED, 'text-anchor': 'middle', 'dominant-baseline': 'central'
+  }));
+
+  // Sits in the gauge's opening at the bottom.
+  svg.appendChild(W.text(total + (total === 1 ? ' TRACK' : ' TRACKS'), {
+    x: CX, y: CY + 162,
+    'font-family': W.FONT_MONO, 'font-size': 13, 'letter-spacing': 3, 'font-weight': 700,
+    fill: W.TEXT, 'text-anchor': 'middle', 'dominant-baseline': 'central'
+  }));
+
+  // --- highlights (interactive view only)
+  const highlights = document.querySelector('[data-highlights]');
+  if (highlights) {
+    const best = tracks.filter(function (track) {
+      return track.tier === 'S' || track.tier === 'A';
+    });
+
+    if (!best.length) {
+      const empty = document.createElement('p');
+      empty.className = 'export-note';
+      empty.textContent = 'No S- or A-tier tracks on this one.';
+      highlights.appendChild(empty);
+    }
+
+    best.forEach(function (track) {
+      const row = document.createElement('div');
+      row.className = 'highlight-row';
+
+      const bar = document.createElement('span');
+      bar.className = 'highlight-bar';
+      bar.style.background = W.TIER_COLORS[track.tier];
+
+      const name = document.createElement('span');
+      name.className = 'highlight-name';
+      name.textContent = track.name;
+
+      const tier = document.createElement('span');
+      tier.className = 'highlight-tier';
+      tier.style.color = W.TIER_COLORS[track.tier];
+      tier.textContent = track.tier;
+
+      row.append(bar, name, tier);
+      highlights.appendChild(row);
+    });
+  }
+
+  widget.wireExports(svg, WIDTH, HEIGHT);
+}());
+</script>
+</body>
+</html>
